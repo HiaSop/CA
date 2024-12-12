@@ -1,0 +1,198 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数字证书申请</title>
+    <style>
+        /* Global Styles */
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+
+        header {
+            background: linear-gradient(90deg, #4caf50, #009688);
+            padding: 20px;
+            color: white;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .main-content {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 30px;
+            flex-wrap: wrap;
+        }
+
+        .business-info, .application-form {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 45%;
+            margin: 10px;
+        }
+
+        .business-info h3, .application-form h3 {
+            color: #4caf50;
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+
+        .business-info p {
+            font-size: 16px;
+            line-height: 1.5;
+            color: #555;
+        }
+
+        .application-form input, .application-form select, .application-form input[type="file"] {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 25px;
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            background: #f7f7f7;
+            font-size: 16px;
+        }
+
+        .application-form button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(90deg, #4caf50, #009688);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .application-form button:hover {
+            background: linear-gradient(90deg, #009688, #4caf50);
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: none;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #4caf50;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 2s linear infinite;
+            margin: auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .footer {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 15px;
+            font-size: 14px;
+            position: fixed;
+            width: 100%;
+            bottom: 0;
+        }
+
+        .extra-links a {
+            color: #4caf50;
+            text-decoration: none;
+        }
+
+        .extra-links a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .business-info, .application-form {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        欢迎来到数字证书申请系统
+    </header>
+
+    <div class="main-content">
+        <!-- Business Information Section -->
+        <div class="business-info">
+            <h3>我们的业务</h3>
+            <p>我们提供数字证书申请服务，帮助您保护在线交易和通信安全。无论是个人还是企业，都可以通过我们的平台申请数字证书。我们的数字证书支持多种加密标准，确保您的数据安全。</p>
+            <p>点击下方申请按钮开始您的申请流程。</p>
+        </div>
+
+        <!-- Application Form Section -->
+        <div class="application-form">
+            <h3>上传CSR文件申请数字证书</h3>
+            <form id="csrForm" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="file" name="csr_file" id="csrFile" accept=".csr" required>
+                <button type="submit">提交申请</button>
+                <div id="spinner" class="spinner"></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="footer">
+        &copy; 2024 Threedom. All rights reserved. | <a href="/terms/">Terms of Service</a> | <a href="/privacy/">Privacy Policy</a>
+    </div>
+
+    <script>
+        const form = document.getElementById('csrForm');
+        const spinner = document.getElementById('spinner');
+        const csrFileInput = document.getElementById('csrFile');
+
+        // 防止表单提交刷新页面
+        form.onsubmit = function (event) {
+            event.preventDefault();
+
+            // 检查文件类型
+            const file = csrFileInput.files[0];
+            if (!file.name.endsWith('.csr')) {
+                alert('请上传有效的 CSR 文件！');
+                return;
+            }
+
+            // 显示加载动画
+            spinner.style.display = 'block';
+
+            const formData = new FormData(form);
+
+            fetch('{% url "upload_csr" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                spinner.style.display = 'none';  // 隐藏加载动画
+                if (data.status === 'success') {
+                    alert('申请成功：' + data.message);
+                } else {
+                    alert('申请失败：' + data.message);
+                }
+            })
+            .catch(error => {
+                spinner.style.display = 'none';  // 隐藏加载动画
+                console.error('Error:', error);
+                alert('提交失败，请重试');
+            });
+        };
+    </script>
+</body>
+</html>
