@@ -1,5 +1,4 @@
 import datetime
-import os
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, padding, serialization
@@ -8,15 +7,26 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.hashers import make_password
 from django.shortcuts import render, redirect
-from django.http import JsonResponse
 import requests
 from django.views.decorators.csrf import csrf_exempt
 from server.forms import UserRegistrationForm
-
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.x509 import Name, NameAttribute
+from cryptography.x509.oid import NameOID
+from cryptography.hazmat.primitives import serialization
+from cryptography.x509 import CertificateSigningRequestBuilder
+from cryptography.hazmat.primitives import hashes
+from django.http import JsonResponse
+from django.shortcuts import render
+import os
 
 # 默认界面
 def start(request):
     return render(request, 'server/login.html')
+
+def homepage(request):
+    return render(request, 'server/homepage.html')
 
 #登录界面
 def user_login(request):
@@ -32,7 +42,7 @@ def user_login(request):
             # 登录用户
             login(request, user)
             request.session["name"] = user.username  # 存储用户名到会话
-            return render(request, 'server/homepage.html')  # 登录成功后重定向到主页
+            return redirect('/homepage/')  # 登录成功后重定向到主页
         else:
             # 如果用户名或密码错误，返回登录页面并显示错误信息
             return render(request, 'server/login.html', {"error": "账户或密码错误"})
@@ -186,3 +196,50 @@ def verify_certificate(request):
     else:  # 如果请求方法不是POST
         return JsonResponse({"error": "Invalid HTTP method."}, status=405)  # 返回405错误，提示方法不允许
 
+# 根据提供的消息生成CSR证书
+def generate_csr(request):
+    try:
+        # 1. 生成RSA密钥对
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048
+        )
+
+        # 2. 创建CSR
+        subject = Name([
+            NameAttribute(NameOID.COUNTRY_NAME, u"US"),
+            NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"California"),
+            NameAttribute(NameOID.LOCALITY_NAME, u"San Francisco"),
+            NameAttribute(NameOID.ORGANIZATION_NAME, u"My Company"),
+            NameAttribute(NameOID.COMMON_NAME, u"www.mycompany.com"),
+        ])
+
+        csr = CertificateSigningRequestBuilder().subject_name(subject).sign(private_key, hashes.SHA256())
+
+        # 3. 导出CSR和私钥为PEM格式
+        csr_pem = csr.public_bytes(encoding=serialization.Encoding.PEM)
+        private_key_pem = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+
+        # 4. 保存CSR文件和私钥文件
+        output_dir = os.path.join(os.path.dirname(__file__), "generated_csr_files")
+        os.makedirs(output_dir, exist_ok=True)
+
+        csr_path = os.path.join(output_dir, "my_csr.csr")
+        private_key_path = os.path.join(output_dir, "my_private_key.pem")
+
+        with open(csr_path, "wb") as csr_file:
+            csr_file.write(csr_pem)
+
+        with open(private_key_path, "wb") as private_key_file:
+            private_key_file.write(private_key_pem)
+
+        return JsonResponse({"message": "CSR and private key generated successfully.",
+                             "csr_path": csr_path,
+                             "private_key_path": private_key_path})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

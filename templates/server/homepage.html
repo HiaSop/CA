@@ -11,24 +11,50 @@
             margin: 0;
             font-family: 'Roboto', sans-serif;
             background-color: #f4f4f9;
-            color: #333;
-        }
-
-        header {
-            background: linear-gradient(90deg, #4caf50, #009688);
-            padding: 20px;
-            color: white;
-            text-align: center;
-            font-size: 24px;
-            font-weight: 700;
-        }
-
-        .main-content {
             display: flex;
-            justify-content: center;
-            align-items: center;
+            height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 250px;
+            background-color: #2c3e50;
+            color: white;
+            height: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+            position: fixed;
+            left: 0;
+            top: 0;
+        }
+
+        .sidebar h2 {
+            margin-top: 0;
+            font-size: 18px;
+            text-align: center;
+            color: #fff;
+        }
+
+        .sidebar a {
+            display: block;
+            color: white;
+            text-decoration: none;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .sidebar a:hover {
+            background-color: #34495e;
+        }
+
+        /* Main content area */
+        .main-content {
+            margin-left: 250px; /* 侧边栏宽度 */
             padding: 50px;
-            flex-direction: column;
+            flex-grow: 1;
         }
 
         .main-content h2 {
@@ -60,6 +86,7 @@
             background-color: #009688;
         }
 
+        /* Footer Styles */
         .footer {
             background: #2c3e50;
             color: white;
@@ -80,22 +107,46 @@
             text-decoration: underline;
         }
     </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-    <header>
-        欢迎来到数字证书申请系统
-    </header>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h2>CA系统功能</h2>
+        <a href="#" data-url="{% url 'upload_csr' %}">证书申请</a>
+        <a href="#" data-url="{% url 'upload_csr' %}">证书申请</a>
+        <a href="#" data-url="{% url 'upload_csr' %}">证书申请</a>
+        <a href="#" data-url="{% url 'upload_csr' %}">证书申请</a>
+        <a href="#" data-url="{% url 'upload_csr' %}">证书申请</a>
+        <a href="#" data-url="{% url 'upload_csr' %}">证书申请</a>
+    </div>
 
-    <div class="main-content">
-        <h2>申请数字证书</h2>
-        <p>数字证书能够保障您的在线交易与通信安全。无论是个人用户还是企业，都可以通过本平台申请数字证书。只需上传 CSR 文件，即可开始申请流程。</p>
-
-        <!-- Call to Action Button to go to CSR upload page -->
-        <a href="{% url 'upload_csr' %}" class="cta-button">开始申请</a>
+    <!-- Main content area -->
+    <div class="main-content" id="main-content">
+        <h2>欢迎来到数字证书申请系统</h2>
+        <p>请选择左侧的功能来进行操作。</p>
     </div>
 
     <div class="footer">
         &copy; 2024 Threedom. All rights reserved. | <a href="/terms/">Terms of Service</a> | <a href="/privacy/">Privacy Policy</a>
     </div>
+
+    <script>
+        // 动态加载内容，并改变 URL
+        $(document).ready(function() {
+            $('.sidebar a').on('click', function(event) {
+                event.preventDefault();
+                const url = $(this).data('url');  // 获取data-url的值
+
+                if (url) {
+                    // 使用 jQuery 动态加载内容
+                    $('#main-content').load(url);
+
+                    // 使用 History API 修改浏览器的 URL
+                    history.pushState(null, null, url);  // 修改 URL，但不会刷新页面
+                }
+            });
+        });
+    </script>
 </body>
 </html>
