@@ -123,9 +123,9 @@ def sign_csr(request):
             )
 
             # 保存
-            cert_path = os.path.join(settings.BASE_DIR+"/templates/certificates")
-            serial_number = issued_cert.serial_number     # 提取序列号
-            with open(cert_path + f"/{serial_number}.cer", mode='wb') as cert_file:
+            serial_number = issued_cert.serial_number  # 提取序列号
+            cert_path = os.path.join(settings.BASE_DIR+"/templates/certificates"+f"/{serial_number}.cer")
+            with open(cert_path, mode='wb') as cert_file:
                 cert_file.write(issued_cert.public_bytes(encoding=serialization.Encoding.PEM))
 
             print(user.username)
@@ -141,11 +141,11 @@ def sign_csr(request):
                 issued_at=datetime.datetime.utcnow(),
                 expires_at=datetime.datetime.utcnow() + datetime.timedelta(days=365),
                 status='valid',  # 默认状态为有效
-                storage_location=cert_path  # 保存证书所在地址
+                storage_location=f"/{serial_number}.cer"  # 保存证书所在地址
             )
             cert.save()
 
-            return JsonResponse({"message": "Certificate issued successfully.", "certificate_path": cert_path})
+            return JsonResponse({"message": "Certificate issued successfully.", "certificate_path": f"{serial_number}.cer"})
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
     else:
