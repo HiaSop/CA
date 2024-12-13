@@ -2,16 +2,19 @@ import datetime
 import os
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes, padding, serialization
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from django.conf import settings
 from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
 import requests
 from django.views.decorators.csrf import csrf_exempt
 from server.forms import UserRegistrationForm
+from server.models import CustomUser, Certificate
 
 
 # Create your views here.
@@ -30,6 +33,7 @@ def user_login(request):
         if user is not None:
             # 登录用户
             login(request, user)
+            print(user.username)
             request.session["name"] = user.username  # 存储用户名到会话
             return render(request, 'server/homepage.html')  # 登录成功后重定向到主页
         else:
@@ -48,8 +52,10 @@ def user_register(request):
         form = UserRegistrationForm()
     return render(request, 'server/register.html', {'form': form})
 
+@login_required
 @csrf_exempt
 def upload_csr(request):
+    user = request.user
     if request.method == "POST":
         try:
             # 获取上传的文件
@@ -61,8 +67,8 @@ def upload_csr(request):
             csr_content = csr_file.read()
 
             # 调用 CA 签发证书的 API
-            ca_api_url = "http://127.0.0.1:8001/api/sign_csr"
-            response = requests.post(ca_api_url, files={"csr_file": csr_content})
+            ca_api_url = "http://127.0.0.1:8000/api/sign_csr"
+            response = requests.post(ca_api_url, files={"csr_file": csr_content}, data={"user_id": user.id})
 
             # 检查 API 响应
             if response.status_code == 200:
@@ -75,12 +81,16 @@ def upload_csr(request):
     else:
         return render(request, "server/upload_csr.html")
 
+
 @csrf_exempt
 def sign_csr(request):
     if request.method == "POST":
         try:
             # 获取CSR文件内容
             csr_data = request.FILES.get("csr_file")
+            user_id = request.POST.get("user_id")  # 从请求中获取 user_id
+            user = CustomUser.objects.get(id=user_id)
+
             if not csr_data:
                 return JsonResponse({"error": "CSR file is required."}, status=400)
 
@@ -115,11 +125,25 @@ def sign_csr(request):
             # 保存
             cert_path = os.path.join(settings.BASE_DIR+"/templates/certificates")
             serial_number = issued_cert.serial_number     # 提取序列号
-
             with open(cert_path + f"/{serial_number}.cer", mode='wb') as cert_file:
-                cert_file.write(issued_cert.public_bytes(serialization.Encoding.PEM))
-            with open(cert_path + f"/{serial_number}.pem", "wb") as cert_file:
                 cert_file.write(issued_cert.public_bytes(encoding=serialization.Encoding.PEM))
+
+            print(user.username)
+            # 保存信息到数据库
+            cert = Certificate(
+                user=user,
+                common_name=csr.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value,
+                public_key=csr.public_key().public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo
+                ).decode('utf-8'),
+                serial_number=str(issued_cert.serial_number),
+                issued_at=datetime.datetime.utcnow(),
+                expires_at=datetime.datetime.utcnow() + datetime.timedelta(days=365),
+                status='valid',  # 默认状态为有效
+                storage_location=cert_path  # 保存证书所在地址
+            )
+            cert.save()
 
             return JsonResponse({"message": "Certificate issued successfully.", "certificate_path": cert_path})
         except Exception as e:
