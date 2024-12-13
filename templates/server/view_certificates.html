@@ -1,0 +1,39 @@
+<!-- server/view_certificates.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Certificates</title>
+</head>
+<body>
+    <h1>My Certificates</h1>
+    
+    {% if certificates %}
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Common Name</th>
+                    <th>Serial Number</th>
+                    <th>Issued At</th>
+                    <th>Expires At</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for certificate in certificates %}
+                    <tr>
+                        <td>{{ certificate.common_name }}</td>
+                        <td>{{ certificate.serial_number }}</td>
+                        <td>{{ certificate.issued_at }}</td>
+                        <td>{{ certificate.expires_at }}</td>
+                        <td>{{ certificate.status }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>You do not have any certificates yet.</p>
+    {% endif %}
+    
+</body>
+</html>

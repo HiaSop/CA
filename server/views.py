@@ -20,10 +20,14 @@ from cryptography.hazmat.primitives import hashes
 from django.http import JsonResponse
 from django.shortcuts import render
 import os
-
+from server.models import CustomUser, Certificate
+from django.utils import timezone
 # 默认界面
 def start(request):
-    return render(request, 'server/login.html')
+    if request.user.is_authenticated:
+        return render(request, 'server/homepage.html')  # 登录成功后重定向到主页
+    return redirect('login')
+
 
 def homepage(request):
     return render(request, 'server/homepage.html')
@@ -196,27 +200,38 @@ def verify_certificate(request):
     else:  # 如果请求方法不是POST
         return JsonResponse({"error": "Invalid HTTP method."}, status=405)  # 返回405错误，提示方法不允许
 
+
+
+def view_certificates(request):
+    user = request.user
+    certificates = Certificate.objects.filter(user=user) # 查询该用户的所有证书
+    return render(request, 'server/view_certificates.html', {'certificates': certificates})
+
 # 根据提供的消息生成CSR证书
+from django.shortcuts import render
+
 def generate_csr(request):
     try:
-        # 1. 生成RSA密钥对
-        private_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048
-        )
+        user = request.username
 
-        # 2. 创建CSR
+        if not user.is_authenticated:
+            return JsonResponse({"error": "User is not authenticated."}, status=401)
+
+        # 生成RSA密钥对
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+        # 创建CSR（证书签名请求）
         subject = Name([
             NameAttribute(NameOID.COUNTRY_NAME, u"US"),
             NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"California"),
             NameAttribute(NameOID.LOCALITY_NAME, u"San Francisco"),
             NameAttribute(NameOID.ORGANIZATION_NAME, u"My Company"),
-            NameAttribute(NameOID.COMMON_NAME, u"www.mycompany.com"),
+            NameAttribute(NameOID.COMMON_NAME, user.username),
         ])
 
         csr = CertificateSigningRequestBuilder().subject_name(subject).sign(private_key, hashes.SHA256())
 
-        # 3. 导出CSR和私钥为PEM格式
+        # 导出CSR和私钥为PEM格式
         csr_pem = csr.public_bytes(encoding=serialization.Encoding.PEM)
         private_key_pem = private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
@@ -224,22 +239,42 @@ def generate_csr(request):
             encryption_algorithm=serialization.NoEncryption()
         )
 
-        # 4. 保存CSR文件和私钥文件
+        # 生成唯一证书序列号
+        serial_number = os.urandom(16).hex()
+
+        # 保存CSR文件和私钥文件
         output_dir = os.path.join(os.path.dirname(__file__), "generated_csr_files")
         os.makedirs(output_dir, exist_ok=True)
 
-        csr_path = os.path.join(output_dir, "my_csr.csr")
-        private_key_path = os.path.join(output_dir, "my_private_key.pem")
+        csr_path = os.path.join(output_dir, f"{serial_number}_csr.csr")
+        private_key_path = os.path.join(output_dir, f"{serial_number}_private_key.pem")
 
+        # 保存文件
         with open(csr_path, "wb") as csr_file:
             csr_file.write(csr_pem)
 
         with open(private_key_path, "wb") as private_key_file:
             private_key_file.write(private_key_pem)
 
-        return JsonResponse({"message": "CSR and private key generated successfully.",
-                             "csr_path": csr_path,
-                             "private_key_path": private_key_path})
+        # 保存证书信息到数据库
+        certificate = Certificate(
+            user=user,
+            common_name=user.username,
+            public_key=private_key.public_key(),
+            serial_number=serial_number,
+            issued_at=timezone.now(),
+            expires_at=timezone.now() + timezone.timedelta(days=365),
+            status="valid",
+            storage_location=csr_path
+        )
+        certificate.save()
+
+        # 返回 HTML 响应而不是 JSON
+        return render(request, 'server/generate_csr.html', {
+            'certificate': certificate,
+            'csr_path': csr_path,
+            'private_key_path': private_key_path
+        })
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
