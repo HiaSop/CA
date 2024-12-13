@@ -10,4 +10,5 @@ urlpatterns = [
     path('api/sign_csr', views.sign_csr, name='sign_csr'),
     path('api/verify_certificate', views.verify_certificate, name='verify_certificate'),
     path('view_certificates', views.view_certificates, name='view_certificates'),
+    path('revoke_certificate', views.revoke_certificate, name='revoke_certificate'),
 ]

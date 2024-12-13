@@ -85,7 +85,6 @@ def upload_csr(request):
     else:
         return render(request, "server/upload_csr.html")
 
-
 @csrf_exempt
 def sign_csr(request):
     if request.method == "POST":
@@ -206,9 +205,38 @@ def verify_certificate(request):
     else:
         return JsonResponse({"error": "Invalid HTTP method."}, status=405)
 
-
 @login_required
 def view_certificates(request):
     user = request.user
     certificates = Certificate.objects.filter(user=user) # 查询该用户的所有证书
     return render(request, 'server/view_certificates.html', {'certificates': certificates})
+
+
+@csrf_exempt
+def revoke_certificate(request):
+    if request.method == "POST":
+        try:
+            # 从请求中获取证书序列号
+            serial_number = request.POST.get("serial_number")
+            if not serial_number:
+                return JsonResponse({"error": "Serial number is required."}, status=400)
+
+            # 查询对应的证书
+            cert = Certificate.objects.filter(serial_number=serial_number).first()
+            if not cert:
+                return JsonResponse({"error": "Certificate not found."}, status=404)
+
+            # 检查证书是否已经注销或过期
+            if cert.status in ["revoked", "expired"]:
+                return JsonResponse({"error": "Certificate is already revoked or expired."}, status=400)
+
+            # 更新证书状态为已注销
+            cert.status = "revoked"
+            cert.save()
+
+            return JsonResponse({"message": f"Certificate {serial_number} has been successfully revoked."})
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid request method."}, status=405)
