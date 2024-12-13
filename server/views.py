@@ -211,7 +211,7 @@ def view_certificates(request):
     certificates = Certificate.objects.filter(user=user) # 查询该用户的所有证书
     return render(request, 'server/view_certificates.html', {'certificates': certificates})
 
-
+# @login_required    # 此处后续得取消注释，防止未授权注销
 @csrf_exempt
 def revoke_certificate(request):
     if request.method == "POST":
