@@ -1,0 +1,96 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload CSR</title>
+    <style>
+        /* 设置页面背景和字体 */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        /* 容器样式 */
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        /* 标题样式 */
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        /* 标签样式 */
+        label {
+            font-size: 16px;
+            color: #555;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        /* 文件选择框样式 */
+        input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #333;
+            background-color: #f9f9f9;
+        }
+
+        /* 提交按钮样式 */
+        button[type="submit"] {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            background-color: #007bff;
+            color: #fff;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        /* 鼠标悬停时按钮颜色变化 */
+        button[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        /* 间距 */
+        .form-group {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload CSR File</h1>
+        <form action="{% url 'upload_csr' %}" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="csr_file">Choose CSR file:</label>
+                <input type="file" id="csr_file" name="csr_file" required>
+            </div>
+            <button type="submit">Upload</button>
+        </form>
+    </div>
+</body>
+</html>
