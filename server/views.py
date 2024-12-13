@@ -19,15 +19,19 @@ from server.models import CustomUser, Certificate
 
 # Create your views here.
 def start(request):
-    return render(request, 'server/login.html')
+    if request.user.is_authenticated:
+        return render(request, 'server/homepage.html')  # 登录成功后重定向到主页
+    return redirect('login')
 
 def user_login(request):
+    print("test")
+    print(request.user.is_authenticated)
     if request.method == "GET":
         return render(request, 'server/login.html')
     elif request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
-
+        print(username, password)
         # 使用Django的身份验证系统验证用户
         user = authenticate(request, username=username, password=password)
         if user is not None:
@@ -86,8 +90,7 @@ def upload_csr(request):
 def sign_csr(request):
     if request.method == "POST":
         try:
-            # 获取CSR文件内容
-            csr_data = request.FILES.get("csr_file")
+            csr_data = request.FILES.get("csr_file")  # 获取CSR文件内容
             user_id = request.POST.get("user_id")  # 从请求中获取 user_id
             user = CustomUser.objects.get(id=user_id)
 
@@ -96,6 +99,12 @@ def sign_csr(request):
 
             # 读取CSR内容并解析
             csr = x509.load_pem_x509_csr(csr_data.read())
+
+            common_name = csr.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+            # 在数据库中查找是否已经有证书为该公共名
+            existing_cert = Certificate.objects.filter(common_name=common_name).first()
+            if existing_cert:
+                return JsonResponse({"error": f"Certificate for {common_name} already exists."}, status=400)
 
             # 校验CSR文件的合法性
             if not csr.is_signature_valid:
@@ -196,3 +205,10 @@ def verify_certificate(request):
             return JsonResponse({"error": f"Verification failed: {str(e)}"}, status=500)
     else:
         return JsonResponse({"error": "Invalid HTTP method."}, status=405)
+
+
+@login_required
+def view_certificates(request):
+    user = request.user
+    certificates = Certificate.objects.filter(user=user) # 查询该用户的所有证书
+    return render(request, 'server/view_certificates.html', {'certificates': certificates})
